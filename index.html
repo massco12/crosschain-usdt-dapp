@@ -2,43 +2,167 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CrossChain USDT Viewer</title>
+  <title>Cross-Chain USDT dApp</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 40px;
+      background-color: #f5f5f5;
+      padding: 30px;
     }
     h1, h2 {
       color: #333;
     }
-    #tokenList div {
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 5px;
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
     }
-    img {
-      vertical-align: middle;
-      margin-right: 10px;
+    input, select, button {
+      padding: 8px;
+      margin-top: 5px;
+      width: 300px;
+      max-width: 100%;
     }
     button {
-      padding: 10px 15px;
-      font-size: 16px;
       cursor: pointer;
+      background-color: #3f51b5;
+      color: white;
+      border: none;
+    }
+    .section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    #status {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    footer {
+      margin-top: 40px;
+      font-size: 14px;
+      color: #777;
     }
   </style>
 </head>
 <body>
-  <h1>CrossChain USDT dApp</h1>
+  <h1>Cross-Chain USDT Transfer dApp</h1>
 
-  <button onclick="connectWallet()">Connect Wallet</button>
-  <p id="walletAddress"></p>
+  <div class="section">
+    <h2>Connect Your Wallet</h2>
+    <button onclick="connectWallet()">Connect Wallet</button>
+    <div id="walletAddress">Wallet not connected</div>
+  </div>
 
-  <h2>Supported Tokens</h2>
-  <div id="tokenList">Loading token list...</div>
+  <div class="section">
+    <h2>Transfer USDT</h2>
 
-  <!-- ✅ Ethers.js CDN v6 -->
+    <label for="fromChain">From Chain:</label>
+    <select id="fromChain">
+      <option value="1">Ethereum</option>
+      <option value="56">BSC</option>
+      <option value="137">Polygon</option>
+      <option value="11155111">Sepolia</option>
+    </select>
+
+    <label for="toChain">To Chain:</label>
+    <select id="toChain">
+      <option value="1">Ethereum</option>
+      <option value="56">BSC</option>
+      <option value="137">Polygon</option>
+      <option value="11155111">Sepolia</option>
+    </select>
+
+    <label for="amount">Amount (USDT):</label>
+    <input type="number" id="amount" placeholder="Enter USDT amount" />
+
+    <label for="recipient">Recipient Address:</label>
+    <input type="text" id="recipient" placeholder="0x..." />
+
+    <button onclick="transfer()">Transfer</button>
+    <div id="status">Not started</div>
+  </div>
+
+  <footer>© 2025 Cross-Chain USDT dApp</footer>
+
+  <!-- Ethers.js v6 UMD -->
   <script src="https://unpkg.com/ethers@6.7.0/dist/ethers.umd.min.js"></script>
-  <script src="main.js"></script>
+  <script>
+    let signer;
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        alert("Please install MetaMask.");
+        return;
+      }
+
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        document.getElementById("walletAddress").innerText = "Connected: " + address;
+      } catch (err) {
+        console.error(err);
+        alert("Wallet connection failed.");
+      }
+    }
+
+    async function transfer() {
+      const fromChain = parseInt(document.getElementById("fromChain").value);
+      const toChain = parseInt(document.getElementById("toChain").value);
+      const amount = document.getElementById("amount").value;
+      const recipient = document.getElementById("recipient").value;
+      const status = document.getElementById("status");
+
+      if (!signer) {
+        alert("Please connect your wallet first.");
+        return;
+      }
+
+      if (fromChain === toChain) {
+        status.innerText = "From and To chain must be different!";
+        return;
+      }
+
+      if (!ethers.isAddress(recipient)) {
+        status.innerText = "Invalid recipient address.";
+        return;
+      }
+
+      if (!amount || parseFloat(amount) <= 0) {
+        status.innerText = "Enter a valid USDT amount.";
+        return;
+      }
+
+      try {
+        status.innerText = "Sending transaction on chain " + fromChain + "...";
+
+        const usdtAddressMap = {
+          1: "0xMainnetAddressHere",
+          56: "0xBSCAddressHere",
+          137: "0xPolygonAddressHere",
+          11155111: "0x353ca89d965e75e5d5f13d9f1cf54d47ba6e44ee"
+        };
+
+        const tokenAddress = usdtAddressMap[fromChain];
+        const usdtAbi = [
+          "function transfer(address to, uint256 amount) public returns (bool)"
+        ];
+
+        const usdtContract = new ethers.Contract(tokenAddress, usdtAbi, signer);
+        const tx = await usdtContract.transfer(recipient, ethers.parseUnits(amount, 6));
+        status.innerText = "Transaction sent. Waiting for confirmation...";
+
+        await tx.wait();
+        status.innerText = "✅ Transfer complete!";
+      } catch (error) {
+        console.error(error);
+        status.innerText = "❌ Error: " + (error.reason || error.message);
+      }
+    }
+  </script>
 </body>
 </html>
