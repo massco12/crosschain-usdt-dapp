@@ -1,93 +1,661 @@
-from zipfile import ZipFile
-from pathlib import Path
-
-# Prepare the new file structure in memory
-project_files = {
-    "index.html": """
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>Cross-Chain USDT dApp</title>
-  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      padding: 30px;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    .token-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .token-logo {
+      width: 36px;
+      height: 36px;
+      margin-right: 10px;
+      border-radius: 50%;
+      background-color: #26A17B;
+      padding: 4px;
+    }
+    .token-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 0;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input, select, button {
+      padding: 8px;
+      margin-top: 5px;
+      width: 300px;
+      max-width: 100%;
+    }
+    button {
+      cursor: pointer;
+      background-color: #3f51b5;
+      color: white;
+      border: none;
+    }
+    button:disabled {
+      background-color: #9e9e9e;
+      cursor: not-allowed;
+    }
+    .section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    #status {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .status-info {
+      color: #2196F3;
+    }
+    .status-success {
+      color: #4CAF50;
+    }
+    .status-error {
+      color: #F44336;
+    }
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3f51b5;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 2s linear infinite;
+      display: inline-block;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .hidden {
+      display: none;
+    }
+    footer {
+      margin-top: 40px;
+      font-size: 14px;
+      color: #777;
+    }
+    .fee-info {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #e8f5e9;
+      border-radius: 4px;
+    }
+    .red-arrow {
+      color: red;
+      font-size: 24px;
+      margin-right: 10px;
+    }
+  </style>
 </head>
 <body>
-  <div id="app">
-    <div class="section">
-      <h2>Connect Your Wallet</h2>
-      <button id="connectButton">Connect Wallet</button>
-      <div id="walletAddress">Wallet not connected</div>
-      <div id="networkStatus" class="hidden">
-        <span id="networkName"></span>
-        <button id="switchNetworkButton" class="hidden">Switch Network</button>
-      </div>
+  <div class="section">
+    <h2>Connect Your Wallet</h2>
+    <button id="connectButton" onclick="connectWallet()">Connect Wallet</button>
+    <div id="walletAddress">Wallet not connected</div>
+    <div id="networkStatus" class="hidden">
+      <span id="networkName"></span>
+      <button id="switchNetworkButton" onclick="switchNetwork()" class="hidden">Switch Network</button>
     </div>
-
-    <div class="section">
-      <div class="token-header">
-        <span class="red-arrow">→</span>
-        <img id="tokenLogo" src="assets/usdt-logo.png" alt="USDT Logo" class="token-logo" />
-        <div class="token-title">CrossChain USDT</div>
-      </div>
-
-      <label for="fromChain">From Chain:</label>
-      <select id="fromChain"></select>
-
-      <label for="toChain">To Chain:</label>
-      <select id="toChain"></select>
-
-      <label for="amount">Amount (USDT):</label>
-      <input type="number" id="amount" placeholder="Enter USDT amount" />
-
-      <div id="balanceInfo" class="hidden">Balance: <span id="usdtBalance">0</span> USDT</div>
-
-      <label for="recipient">Recipient Address:</label>
-      <input type="text" id="recipient" placeholder="0x..." />
-
-      <div id="feeEstimate" class="fee-info hidden">
-        <div>Estimated Bridge Fee: <span id="bridgeFee">0</span> USDT</div>
-        <div>Estimated Gas (source chain): ~<span id="sourceGas">0</span></div>
-        <div>You will receive approximately <span id="receiveAmount">0</span> USDT on the destination chain</div>
-      </div>
-
-      <button id="approveButton" class="hidden">Approve USDT</button>
-      <button id="transferButton" disabled>Transfer</button>
-
-      <div id="statusContainer">
-        <div id="loader" class="loader hidden"></div>
-        <div id="status">Not started</div>
-      </div>
-    </div>
-
-    <div class="section hidden" id="transactionSection">
-      <h2>Transaction Details</h2>
-      <div id="txDetails"></div>
-    </div>
-
-    <footer>© 2025 Cross-Chain USDT dApp</footer>
   </div>
 
+  <div class="section">
+    <div class="token-header">
+      <span class="red-arrow">→</span>
+      <img id="tokenLogo" src="https://cdn.jsdelivr.net/gh/massco12/crosschain-usdt-tokenlist@main/logos/usdt-logo.png" alt="USDT Logo" class="token-logo">
+      <div class="token-title">CrossChain USDT</div>
+    </div>
+
+    <label for="fromChain">From Chain:</label>
+    <select id="fromChain" onchange="updateUI()">
+      <option value="11155111">Sepolia</option>
+      <option value="1">Ethereum</option>
+      <option value="56">BSC</option>
+      <option value="137">Polygon</option>
+    </select>
+
+    <label for="toChain">To Chain:</label>
+    <select id="toChain" onchange="updateUI()">
+      <option value="1">Ethereum</option>
+      <option value="56">BSC</option>
+      <option value="137">Polygon</option>
+      <option value="11155111">Sepolia</option>
+    </select>
+
+    <label for="amount">Amount (USDT):</label>
+    <input type="number" id="amount" placeholder="Enter USDT amount" onchange="updateFeeEstimate()" />
+    <div id="balanceInfo" class="hidden">Balance: <span id="usdtBalance">0</span> USDT</div>
+
+    <label for="recipient">Recipient Address:</label>
+    <input type="text" id="recipient" placeholder="0x..." />
+
+    <div id="feeEstimate" class="fee-info hidden">
+      <div>Estimated Bridge Fee: <span id="bridgeFee">0</span> USDT</div>
+      <div>Estimated Gas (source chain): ~<span id="sourceGas">0</span></div>
+      <div>You will receive approximately <span id="receiveAmount">0</span> USDT on the destination chain</div>
+    </div>
+
+    <button id="approveButton" onclick="approveUSDT()" class="hidden">Approve USDT</button>
+    <button id="transferButton" onclick="transfer()" disabled>Transfer</button>
+    
+    <div id="statusContainer">
+      <div id="loader" class="loader hidden"></div>
+      <div id="status">Not started</div>
+    </div>
+  </div>
+
+  <div class="section hidden" id="transactionSection">
+    <h2>Transaction Details</h2>
+    <div id="txDetails"></div>
+  </div>
+
+  <footer>© 2025 Cross-Chain USDT dApp</footer>
+
+  <!-- Ethers.js v6 UMD -->
   <script src="https://unpkg.com/ethers@6.7.0/dist/ethers.umd.min.js"></script>
-  <script type="module" src="main.js"></script>
+  <script>
+    // Token List Configuration
+    const tokenList = {
+      "name": "CrossChain USDT Token List",
+      "logoURI": "https://cdn.jsdelivr.net/gh/massco12/crosschain-usdt-tokenlist@main/logos/usdt-logo.png",
+      "logoBackupURI": "https://raw.githubusercontent.com/massco12/crosschain-usdt-tokenlist/main/logos/usdt-logo.png",
+      "keywords": ["stablecoin", "usdt", "cross-chain"],
+      "timestamp": "2025-05-01T13:47:46.842155Z",
+      "tokens": [
+        {
+          "name": "CrossChain USDT",
+          "symbol": "USDT",
+          "decimals": 6,
+          "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+          "chainId": 11155111,
+          "logoURI": "https://cdn.jsdelivr.net/gh/massco12/crosschain-usdt-tokenlist@main/logos/usdt-logo.png",
+          "logoBackupURI": "https://raw.githubusercontent.com/massco12/crosschain-usdt-tokenlist/main/logos/usdt-logo.png",
+          "extensions": {
+            "isStablecoin": true,
+            "bridgeInfo": {
+              "1": { "tokenAddress": "0xMainnetAddressHere" },
+              "56": { "tokenAddress": "0xBSCAddressHere" },
+              "137": { "tokenAddress": "0xPolygonAddressHere" },
+              "11155111": { "tokenAddress": "0x353ca89d965e75e5d5f13d9f1cf54d47ba6e44ee" }
+            }
+          }
+        }
+      ],
+      "version": {
+        "major": 1,
+        "minor": 0,
+        "patch": 0
+      }
+    };
+    
+    // Chain Configuration
+    const chainConfig = {
+      1: {
+        name: "Ethereum",
+        rpcUrl: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY",
+        usdtAddress: tokenList.tokens[0].extensions.bridgeInfo["1"].tokenAddress,
+        decimals: 6,
+        bridgeAddress: "0xYourEthereumBridgeAddress",
+        explorer: "https://etherscan.io/tx/"
+      },
+      56: {
+        name: "BSC",
+        rpcUrl: "https://bsc-dataseed.binance.org/",
+        usdtAddress: tokenList.tokens[0].extensions.bridgeInfo["56"].tokenAddress,
+        decimals: 18,
+        bridgeAddress: "0xYourBSCBridgeAddress",
+        explorer: "https://bscscan.com/tx/"
+      },
+      137: {
+        name: "Polygon",
+        rpcUrl: "https://polygon-rpc.com",
+        usdtAddress: tokenList.tokens[0].extensions.bridgeInfo["137"].tokenAddress,
+        decimals: 6,
+        bridgeAddress: "0xYourPolygonBridgeAddress",
+        explorer: "https://polygonscan.com/tx/"
+      },
+      11155111: {
+        name: "Sepolia",
+        rpcUrl: "https://sepolia.infura.io/v3/YOUR_INFURA_KEY",
+        usdtAddress: tokenList.tokens[0].extensions.bridgeInfo["11155111"].tokenAddress,
+        decimals: 6,
+        bridgeAddress: "0xYourSepoliaBridgeAddress",
+        explorer: "https://sepolia.etherscan.io/tx/"
+      }
+    };
+
+    // Bridge ABI simplified for demonstration
+    const bridgeAbi = [
+      "function bridgeTokens(address token, uint256 amount, uint16 destChainId, address recipient) external returns (uint256 sequence)",
+      "function estimateFee(uint16 destChainId, address token, uint256 amount) external view returns (uint256 fee)",
+      "function getMessageFee(uint16 destChainId) external view returns (uint256 fee)"
+    ];
+
+    // Token ABI
+    const tokenAbi = [
+      "function approve(address spender, uint256 amount) external returns (bool)",
+      "function transfer(address to, uint256 amount) external returns (bool)",
+      "function balanceOf(address account) external view returns (uint256)",
+      "function allowance(address owner, address spender) external view returns (uint256)",
+      "function decimals() external view returns (uint8)"
+    ];
+    
+    // State variables
+    let signer;
+    let provider;
+    let currentChainId;
+    let hasApproved = false;
+    
+    // UI Elements
+    const statusEl = document.getElementById("status");
+    const loaderEl = document.getElementById("loader");
+    const transferButton = document.getElementById("transferButton");
+    const approveButton = document.getElementById("approveButton");
+    
+    // Initialize 
+    window.addEventListener('load', async () => {
+      if (window.ethereum) {
+        window.ethereum.on('chainChanged', handleChainChanged);
+        window.ethereum.on('accountsChanged', handleAccountsChanged);
+      }
+      // Set default values based on the token list
+      document.getElementById('tokenLogo').src = tokenList.logoURI;
+      document.getElementById('tokenLogo').onerror = () => {
+        document.getElementById('tokenLogo').src = tokenList.logoBackupURI;
+      };
+      
+      // Set Sepolia as default from chain to match the screenshot
+      document.getElementById('fromChain').value = "11155111";
+      document.getElementById('toChain').value = "1";
+      
+      updateUI();
+    });
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        showStatus("Please install MetaMask.", "error");
+        return;
+      }
+
+      try {
+        showLoader(true);
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        
+        // Format address to match screenshot (truncate with ellipsis in middle)
+        const formattedAddress = formatAddress(address);
+        document.getElementById("walletAddress").innerText = "Connected: " + formattedAddress;
+        document.getElementById("connectButton").innerText = "Wallet Connected";
+        
+        currentChainId = await getChainId();
+        document.getElementById("networkStatus").classList.remove("hidden");
+        document.getElementById("networkName").innerText = "Current Network: " + 
+          (chainConfig[currentChainId]?.name || "Unknown Network");
+        
+        // Don't override the fromChain if it's already set
+        updateUI();
+        showLoader(false);
+      } catch (err) {
+        console.error(err);
+        showStatus("Wallet connection failed: " + (err.message || err), "error");
+        showLoader(false);
+      }
+    }
+    
+    // Helper function to format address with middle ellipsis like in the screenshot
+    function formatAddress(address) {
+      if (!address) return "";
+      // Format: 0x91F0343896645[...]f550DEdBAE517
+      const start = address.substring(0, 14);
+      const end = address.substring(address.length - 12);
+      return start + `${end}`;
+    }
+
+    async function handleChainChanged() {
+      window.location.reload();
+    }
+
+    async function handleAccountsChanged(accounts) {
+      if (accounts.length === 0) {
+        document.getElementById("walletAddress").innerText = "Wallet not connected";
+        document.getElementById("connectButton").innerText = "Connect Wallet";
+        signer = null;
+      } else {
+        connectWallet(); // Refresh connection
+      }
+    }
+
+    async function getChainId() {
+      if (!provider) return null;
+      const network = await provider.getNetwork();
+      return Number(network.chainId);
+    }
+
+    async function switchNetwork() {
+      const targetChainId = document.getElementById("fromChain").value;
+      if (!window.ethereum || !provider) {
+        showStatus("MetaMask not detected.", "error");
+        return;
+      }
+
+      try {
+        showLoader(true);
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: "0x" + parseInt(targetChainId).toString(16) }],
+        });
+        showLoader(false);
+      } catch (switchError) {
+        showLoader(false);
+        if (switchError.code === 4902) {
+          showStatus("This network needs to be added to MetaMask first.", "error");
+        } else {
+          showStatus("Failed to switch network: " + (switchError.message || switchError), "error");
+        }
+      }
+    }
+
+    async function updateUI() {
+      if (!signer) {
+        transferButton.disabled = true;
+        return;
+      }
+
+      const fromChainId = document.getElementById("fromChain").value;
+      const toChainId = document.getElementById("toChain").value;
+      
+      // Check if we're on the right network
+      if (currentChainId != fromChainId) {
+        document.getElementById("switchNetworkButton").classList.remove("hidden");
+        transferButton.disabled = true;
+        showStatus(`Please switch to ${chainConfig[fromChainId]?.name || "the correct network"}`, "info");
+      } else {
+        document.getElementById("switchNetworkButton").classList.add("hidden");
+        transferButton.disabled = false;
+      }
+      
+      // Check if source and dest are the same
+      if (fromChainId === toChainId) {
+        showStatus("Source and destination chains must be different", "error");
+        transferButton.disabled = true;
+      }
+      
+      // Get USDT balance if wallet connected
+      await checkTokenBalance();
+      await updateFeeEstimate();
+      await checkApproval();
+    }
+
+    async function checkTokenBalance() {
+      if (!signer || !provider) return;
+      
+      try {
+        const fromChainId = document.getElementById("fromChain").value;
+        const tokenAddress = chainConfig[fromChainId]?.usdtAddress;
+        const decimals = chainConfig[fromChainId]?.decimals || 6;
+        
+        if (!tokenAddress) return;
+        
+        const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
+        const userAddress = await signer.getAddress();
+        const balance = await tokenContract.balanceOf(userAddress);
+        
+        const formattedBalance = ethers.formatUnits(balance, decimals);
+        document.getElementById("usdtBalance").innerText = parseFloat(formattedBalance).toFixed(2);
+        document.getElementById("balanceInfo").classList.remove("hidden");
+      } catch (error) {
+        console.error("Error checking balance:", error);
+      }
+    }
+
+    async function updateFeeEstimate() {
+      if (!signer || !provider) return;
+      
+      const fromChainId = document.getElementById("fromChain").value;
+      const toChainId = document.getElementById("toChain").value;
+      const amount = document.getElementById("amount").value;
+      
+      if (!amount || parseFloat(amount) <= 0 || fromChainId === toChainId) {
+        document.getElementById("feeEstimate").classList.add("hidden");
+        return;
+      }
+      
+      try {
+        const bridgeAddress = chainConfig[fromChainId]?.bridgeAddress;
+        const decimals = chainConfig[fromChainId]?.decimals || 6;
+        const tokenAddress = chainConfig[fromChainId]?.usdtAddress;
+        
+        if (!bridgeAddress || !tokenAddress) {
+          document.getElementById("feeEstimate").classList.add("hidden");
+          return;
+        }
+        
+        showLoader(true);
+        const bridgeContract = new ethers.Contract(bridgeAddress, bridgeAbi, provider);
+        
+        // This would be an actual call to the bridge contract in production
+        // For now we're simulating a fee of ~0.1-0.3% of the amount
+        const parsedAmount = ethers.parseUnits(amount, decimals);
+        const feePercentage = 0.002; // 0.2%
+        const simulatedFee = parsedAmount * BigInt(Math.floor(feePercentage * 10000)) / BigInt(10000);
+        
+        const gasFee = "~$5-15"; // Simplified; would come from gas estimation
+        const receiveAmount = ethers.formatUnits(parsedAmount - simulatedFee, decimals);
+        
+        document.getElementById("bridgeFee").innerText = ethers.formatUnits(simulatedFee, decimals);
+        document.getElementById("sourceGas").innerText = gasFee;
+        document.getElementById("receiveAmount").innerText = parseFloat(receiveAmount).toFixed(4);
+        document.getElementById("feeEstimate").classList.remove("hidden");
+        showLoader(false);
+      } catch (error) {
+        console.error("Error estimating fees:", error);
+        document.getElementById("feeEstimate").classList.add("hidden");
+        showLoader(false);
+      }
+    }
+    
+    async function checkApproval() {
+      if (!signer || !provider) return;
+      
+      const fromChainId = document.getElementById("fromChain").value;
+      const amount = document.getElementById("amount").value;
+      
+      if (!amount || parseFloat(amount) <= 0) return;
+      
+      try {
+        const tokenAddress = chainConfig[fromChainId]?.usdtAddress;
+        const bridgeAddress = chainConfig[fromChainId]?.bridgeAddress;
+        const decimals = chainConfig[fromChainId]?.decimals || 6;
+        
+        if (!tokenAddress || !bridgeAddress) return;
+        
+        const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
+        const userAddress = await signer.getAddress();
+        const allowance = await tokenContract.allowance(userAddress, bridgeAddress);
+        const parsedAmount = ethers.parseUnits(amount, decimals);
+        
+        hasApproved = allowance >= parsedAmount;
+        
+        // Show or hide the approve button based on allowance
+        if (!hasApproved) {
+          approveButton.classList.remove("hidden");
+          transferButton.disabled = true;
+        } else {
+          approveButton.classList.add("hidden");
+          transferButton.disabled = false;
+        }
+      } catch (error) {
+        console.error("Error checking approval:", error);
+      }
+    }
+    
+    async function approveUSDT() {
+      if (!signer) {
+        showStatus("Please connect your wallet first.", "error");
+        return;
+      }
+      
+      const fromChainId = document.getElementById("fromChain").value;
+      const amount = document.getElementById("amount").value;
+      
+      if (!amount || parseFloat(amount) <= 0) {
+        showStatus("Enter a valid USDT amount.", "error");
+        return;
+      }
+      
+      try {
+        showLoader(true);
+        showStatus("Approving USDT...", "info");
+        
+        const tokenAddress = chainConfig[fromChainId]?.usdtAddress;
+        const bridgeAddress = chainConfig[fromChainId]?.bridgeAddress;
+        const decimals = chainConfig[fromChainId]?.decimals || 6;
+        
+        if (!tokenAddress || !bridgeAddress) {
+          showStatus("Configuration error. Please try again later.", "error");
+          showLoader(false);
+          return;
+        }
+        
+        const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, signer);
+        const parsedAmount = ethers.parseUnits(amount, decimals);
+        
+        // Approve with a buffer
+        const tx = await tokenContract.approve(bridgeAddress, parsedAmount * BigInt(120) / BigInt(100));
+        showStatus("Approval transaction sent. Waiting for confirmation...", "info");
+        
+        const receipt = await tx.wait();
+        showStatus("✅ USDT approved! You can now initiate the transfer.", "success");
+        hasApproved = true;
+        approveButton.classList.add("hidden");
+        transferButton.disabled = false;
+        showLoader(false);
+      } catch (error) {
+        console.error(error);
+        showStatus("❌ Approval failed: " + (error.reason || error.message || error), "error");
+        showLoader(false);
+      }
+    }
+
+    async function transfer() {
+      const fromChainId = parseInt(document.getElementById("fromChain").value);
+      const toChainId = parseInt(document.getElementById("toChain").value);
+      const amount = document.getElementById("amount").value;
+      const recipient = document.getElementById("recipient").value;
+      
+      if (!signer) {
+        showStatus("Please connect your wallet first.", "error");
+        return;
+      }
+
+      if (fromChainId === toChainId) {
+        showStatus("From and To chain must be different!", "error");
+        return;
+      }
+
+      if (!ethers.isAddress(recipient)) {
+        showStatus("Invalid recipient address.", "error");
+        return;
+      }
+
+      if (!amount || parseFloat(amount) <= 0) {
+        showStatus("Enter a valid USDT amount.", "error");
+        return;
+      }
+      
+      if (currentChainId != fromChainId) {
+        showStatus(`Please switch to ${chainConfig[fromChainId]?.name} network first`, "error");
+        return;
+      }
+      
+      if (!hasApproved) {
+        showStatus("Please approve USDT spending first", "error");
+        return;
+      }
+
+      try {
+        showLoader(true);
+        showStatus(`Initiating cross-chain transfer from ${chainConfig[fromChainId]?.name} to ${chainConfig[toChainId]?.name}...`, "info");
+
+        const tokenAddress = chainConfig[fromChainId]?.usdtAddress;
+        const bridgeAddress = chainConfig[fromChainId]?.bridgeAddress;
+        const decimals = chainConfig[fromChainId]?.decimals || 6;
+        
+        if (!tokenAddress || !bridgeAddress) {
+          showStatus("Configuration error. Please try again later.", "error");
+          showLoader(false);
+          return;
+        }
+
+        const bridgeContract = new ethers.Contract(bridgeAddress, bridgeAbi, signer);
+        const parsedAmount = ethers.parseUnits(amount, decimals);
+        
+        // Call the bridge contract to transfer tokens cross-chain
+        const tx = await bridgeContract.bridgeTokens(
+          tokenAddress,
+          parsedAmount,
+          toChainId,
+          recipient
+        );
+        
+        showStatus("Transaction sent. Waiting for confirmation...", "info");
+        const receipt = await tx.wait();
+        
+        // Show transaction details
+        document.getElementById("transactionSection").classList.remove("hidden");
+        document.getElementById("txDetails").innerHTML = `
+          <p><strong>Transaction Hash:</strong> <a href="${chainConfig[fromChainId]?.explorer}${receipt.hash}" target="_blank">${receipt.hash}</a></p>
+          <p><strong>From:</strong> ${await signer.getAddress()}</p>
+          <p><strong>To:</strong> ${recipient}</p>
+          <p><strong>Amount:</strong> ${amount} USDT</p>
+          <p><strong>Status:</strong> Success</p>
+          <p>Your tokens will arrive on ${chainConfig[toChainId]?.name} in approximately 10-15 minutes.</p>
+        `;
+        
+        showStatus("✅ Cross-chain transfer initiated successfully!", "success");
+        showLoader(false);
+      } catch (error) {
+        console.error(error);
+        showStatus("❌ Transfer failed: " + (error.reason || error.message || error), "error");
+        showLoader(false);
+      }
+    }
+    
+    // Helper functions
+    function showStatus(message, type = "info") {
+      statusEl.innerText = message;
+      statusEl.className = "";
+      statusEl.classList.add("status-" + type);
+    }
+    
+    function showLoader(show) {
+      if (show) {
+        loaderEl.classList.remove("hidden");
+      } else {
+        loaderEl.classList.add("hidden");
+      }
+    }
+  </script>
 </body>
 </html>
-""",
-    "styles.css": """/* Moved CSS from inline to external */\nbody { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 30px; }\nh1, h2 { color: #333; }\n/* ...additional styles omitted for brevity */""",
-    "main.js": """import { initApp } from './modules/app.js';\nimport { setupWallet } from './modules/wallet.js';\nimport { setupBridge } from './modules/bridge.js';\n\nwindow.addEventListener('load', async () => {\n  await initApp();\n  await setupWallet();\n  await setupBridge();\n});""",
-    "modules/app.js": """export async function initApp() {\n  document.getElementById('fromChain').innerHTML = '<option value="11155111">Sepolia</option><option value="1">Ethereum</option><option value="56">BSC</option><option value="137">Polygon</option>';\n  document.getElementById('toChain').innerHTML = '<option value="1">Ethereum</option><option value="56">BSC</option><option value="137">Polygon</option><option value="11155111">Sepolia</option>';\n}""",
-    "modules/wallet.js": """export async function setupWallet() {\n  // connectWallet logic here\n  document.getElementById('connectButton').addEventListener('click', () => {\n    console.log('Connect wallet button clicked');\n  });\n}""",
-    "modules/bridge.js": """export async function setupBridge() {\n  // Transfer, approval, and fee estimation logic here\n  document.getElementById('transferButton').addEventListener('click', () => {\n    console.log('Transfer button clicked');\n  });\n}""",
-    "assets/usdt-logo.png": "",  # Placeholder for the image file
-}
-
-# Create a ZIP file with these structured contents
-zip_path = "/mnt/data/crosschain-dapp-modular.zip"
-with ZipFile(zip_path, 'w') as zipf:
-    for filename, content in project_files.items():
-        filepath = Path(filename)
-        if filepath.suffix == ".png":
-            continue  # Ignore binary placeholder
-        zipf.writestr(str(filepath), content)
-
-zip_path
