@@ -176,7 +176,7 @@
     // Token List Configuration
     const tokenList = {
       "name": "CrossChain USDT Token List",
-      "logoURI": "https://cdn.jsdelivr.net/gh/massco12/crosschain-usdt-tokenlist@main/logos/usdt-logo.png",
+      "logoURI": 'img id="tokenLogo" src="https://cdn.jsdelivr.net/gh/massco12/crosschain-usdt-tokenlist@main/logos/usdt-logo.png" width="40" alt="USDT Token Logo"',
       "logoBackupURI": "https://raw.githubusercontent.com/massco12/crosschain-usdt-tokenlist/main/logos/usdt-logo.png",
       "keywords": ["stablecoin", "usdt", "cross-chain"],
       "timestamp": "2025-05-01T13:47:46.842155Z",
@@ -187,7 +187,7 @@
           "decimals": 6,
           "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
           "chainId": 11155111,
-          "logoURI": "https://cdn.jsdelivr.net/gh/massco12/crosschain-usdt-tokenlist@main/logos/usdt-logo.png",
+          "logoURI": 'img id="tokenLogo" src="https://cdn.jsdelivr.net/gh/massco12/crosschain-usdt-tokenlist@main/logos/usdt-logo.png" width="40" alt="USDT Token Logo"',
           "logoBackupURI": "https://raw.githubusercontent.com/massco12/crosschain-usdt-tokenlist/main/logos/usdt-logo.png",
           "extensions": {
             "isStablecoin": true,
@@ -278,7 +278,7 @@
         window.ethereum.on('accountsChanged', handleAccountsChanged);
       }
       // Set default values based on the token list
-      document.getElementById('tokenLogo').src = tokenList.logoURI;
+      // No need to set the src since it's already in the logoURI HTML
       document.getElementById('tokenLogo').onerror = () => {
         document.getElementById('tokenLogo').src = tokenList.logoBackupURI;
       };
@@ -329,7 +329,7 @@
       // Format: 0x91F0343896645[...]f550DEdBAE517
       const start = address.substring(0, 14);
       const end = address.substring(address.length - 12);
-      return start + `${end}`;
+      return start + `[...]` + end;
     }
 
     async function handleChainChanged() {
